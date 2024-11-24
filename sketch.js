@@ -20,11 +20,12 @@ let fft;
 
 let params = {
   lineThickness: 1,
-  angle:73,
-  delta:0,
-  motion:false,
-  fill:false,
-  selected: "hexa_triangle_square"
+  angle: 73,
+  delta: 0,
+  speed: 0.05,
+  selected: "hexa_triangle_square",
+  backgroundColor: 51,
+  ampSmooth: 0.9,
 };
 
 function preload() {
@@ -73,21 +74,22 @@ function setup() {
   var choices = ['hexa_triangle_square', 'square', 'hexagonal', '4.8.8', 'dodeca_hex_square'];
 
 gui.add(params, 'selected', choices)
-    .name('Multiple Select')
+    .name('Pattern Type')
     .onChange(chooseTiling);
   
-  //gui.add(params, "showUnsmoothed");
-  gui.add(params, "fill");
-  gui.add(params, "motion");
   gui.add(params, "lineThickness").min(0.1).max(8.0).step(0.01);
-    gui.add(params, "delta").min(0).max(50.0).step(1);
-    gui.add(params, "angle").min(0).max(90.0).step(1);
-    song.stop();
+  gui.add(params, "delta").min(0).max(50.0).step(1);
+  gui.add(params, "angle").min(0).max(90.0).step(1);
+  gui.add(params, "speed").min(0.01).max(2.0).step(0.01).name("Drawing Speed");
+  gui.add(params, "backgroundColor").min(0).max(255).step(1).name("Background");
+  gui.add(params, "ampSmooth").min(0.01).max(0.99).step(0.01).name("Audio Smooth");
   
-    // Remove old play/pause button if it exists
-    if (playPauseButton) {
-      playPauseButton.remove();
-    }
+  // Remove the fill and motion parameters
+  
+  // Remove old play/pause button if it exists
+  if (playPauseButton) {
+    playPauseButton.remove();
+  }
 }
 
 
@@ -119,22 +121,22 @@ function startExperience() {
 function draw() {
   if (!isStarted) return;
   
-  background(51);
+  background(params.backgroundColor);
   fft.analyze();
-  amp.smooth(0.9);
+  amp.smooth(params.ampSmooth);
   let level = amp.getLevel();
   
   let elapsedTime = millis() - startTime;
   
-  // Check if we should switch to accelerated mode
+  // Use params.speed as base speed
   if (elapsedTime > ACCELERATION_TIME && !drawingMultiple) {
     drawingMultiple = true;
-    drawSpeed = 0.05; // Initial speed increase
+    drawSpeed = params.speed; // Use parameter for initial speed
   }
   
   // Increase speed over time in accelerated mode
   if (drawingMultiple) {
-    drawSpeed = min(drawSpeed + 0.0001, 0.2); // Gradually increase speed, cap at 0.2
+    drawSpeed = min(drawSpeed + (params.speed + 0.002), params.speed * 4); // Scale max speed based on parameter
   }
   
   // Update line progress with time
@@ -191,24 +193,28 @@ function draw() {
 }
 
 function octSquareTiling() {
+  console.log("!!Creating octagon square pattern");
   var octSqTiles = new SquareOctagonTiling(50);
   octSqTiles.buildGrid();
   polys = octSqTiles.polys;
 }
 
 function hexTiling() {
+  console.log("!!Creating hexagonal pattern");
   var hexTiles = new HexagonalTiling(50);
   hexTiles.buildGrid();
   polys = hexTiles.polys;
 }
 
 function hexTriangleSquareTiling() {
+  console.log("!!Creating hexa triangle square pattern");
   var tiles = new HexaTriangleSquareTiling(50.);
   tiles.buildGrid();
   polys = tiles.polys;
 }
 
 function squareTiling() {
+  console.log("!!Creating square pattern");
   polys = [];
   var inc = height/13;
   for (var x = 0; x < width; x += inc) {
@@ -240,26 +246,49 @@ function gotFile(file) {
 }
 
 function chooseTiling() {
+  console.log("chooseTiling called with pattern:", params.selected);
+  // Clear existing arrays
+  polys = [];
+  orderedPolys = [];
+  completedPolys = [];
+  
   switch (params.selected) {
     case "4.8.8":
+      console.log("Creating octagon square pattern");
       octSquareTiling();
       break;
     case "square":
+      console.log("Creating square pattern");
       squareTiling();
       break;
     case "hexagonal":
+      console.log("Creating hexagonal pattern");
       hexTiling();
       break;
     case "dodeca_hex_square":
+      console.log("Creating dodeca hex square pattern");
       dodecaHexSquareTiling();
       break;
     case "hexa_triangle_square":
+      console.log("Creating hexa triangle square pattern");
       hexTriangleSquareTiling();
       break;
     default:
+      console.log("Using default pattern");
       hexTriangleSquareTiling();
       break;
   }
+  
+  // Reset drawing state
+  orderPolysFromCenter();
+  currentPoly = 0;
+  currentLineIndex = 0;
+  lineProgress = 0;
+  drawingMultiple = false;
+  drawSpeed = 0.02;
+  
+  // Reset the background
+  background(51);
 }
 
 // Add this function to order polygons from center outward
