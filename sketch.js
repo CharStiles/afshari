@@ -126,34 +126,37 @@ function draw() {
   amp.smooth(params.ampSmooth);
   let level = amp.getLevel();
   
-  let elapsedTime = millis() - startTime;
-  
-  // Use params.speed as base speed
-  if (elapsedTime > ACCELERATION_TIME && !drawingMultiple) {
-    drawingMultiple = true;
-    drawSpeed = params.speed; // Use parameter for initial speed
-  }
-  
-  // Increase speed over time in accelerated mode
-  if (drawingMultiple) {
-    drawSpeed = min(drawSpeed + (params.speed + 0.002), params.speed * 4); // Scale max speed based on parameter
-  }
-  
-  // Update line progress with time
-  lineProgress += drawSpeed;
-  
-  // When line is complete, move to next line
-  if (lineProgress >= 1) {
-    lineProgress = 0;
-    currentLineIndex++;
+  // Only progress if there's sound
+  if (level > 0.001) {  // Small threshold to account for background noise
+    let elapsedTime = millis() - startTime;
     
-    if (currentLineIndex >= orderedPolys[currentPoly].edges.length) {
-      completedPolys.push(orderedPolys[currentPoly]);
-      currentPoly++;
-      currentLineIndex = 0;
+    // Use params.speed as base speed
+    if (elapsedTime > ACCELERATION_TIME && !drawingMultiple) {
+      drawingMultiple = true;
+      drawSpeed = params.speed;
+    }
+    
+    // Increase speed over time in accelerated mode
+    if (drawingMultiple) {
+      drawSpeed = min(drawSpeed + (params.speed + 0.002), params.speed * 4);
+    }
+    
+    // Update line progress with time
+    lineProgress += drawSpeed;
+    
+    // When line is complete, move to next line
+    if (lineProgress >= 1) {
+      lineProgress = 0;
+      currentLineIndex++;
       
-      if (currentPoly >= orderedPolys.length) {
-        currentPoly = orderedPolys.length - 1;
+      if (currentLineIndex >= orderedPolys[currentPoly].edges.length) {
+        completedPolys.push(orderedPolys[currentPoly]);
+        currentPoly++;
+        currentLineIndex = 0;
+        
+        if (currentPoly >= orderedPolys.length) {
+          currentPoly = orderedPolys.length - 1;
+        }
       }
     }
   }
@@ -191,7 +194,6 @@ function draw() {
     rect(0, 0, width, height);
   }
 }
-
 function octSquareTiling() {
   console.log("!!Creating octagon square pattern");
   var octSqTiles = new SquareOctagonTiling(50);
