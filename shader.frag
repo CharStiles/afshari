@@ -27,6 +27,27 @@ vec2 random2(vec2 st){
 #define BOUNCE_SPEED 2.0
 #define RAY_BRIGHTNESS 0.5
 
+// Blur function
+vec4 blur(sampler2D tex, vec2 uv, vec2 resolution) {
+    float blurSize = 2.0/resolution.x;  // Adjust blur size
+    vec4 sum = vec4(0.0);
+    
+    // 9-tap gaussian blur
+    sum += texture2D(tex, uv + vec2(-blurSize, -blurSize)) * 0.0625;
+    sum += texture2D(tex, uv + vec2(0.0, -blurSize)) * 0.125;
+    sum += texture2D(tex, uv + vec2(blurSize, -blurSize)) * 0.0625;
+    
+    sum += texture2D(tex, uv + vec2(-blurSize, 0.0)) * 0.125;
+    sum += texture2D(tex, uv) * 0.25;
+    sum += texture2D(tex, uv + vec2(blurSize, 0.0)) * 0.125;
+    
+    sum += texture2D(tex, uv + vec2(-blurSize, blurSize)) * 0.0625;
+    sum += texture2D(tex, uv + vec2(0.0, blurSize)) * 0.125;
+    sum += texture2D(tex, uv + vec2(blurSize, blurSize)) * 0.0625;
+    
+    return sum;
+}
+
 void main() {
   vec2 uv = vTexCoord;
 
@@ -39,10 +60,10 @@ void main() {
   vec4 currentColor = texture2D(tex0, uv);
   vec4 prevColor = texture2D(prevFrame, uv);
   
-  // Detect movement by comparing frames
-  float movement = length(currentColor.rgb - prevColor.rgb);
-  
-
+  // Calculate movement with blur
+  vec4 blurredCurrent = blur(tex0, uv, resolution);
+  vec4 blurredPrev = blur(prevFrame, uv, resolution);
+  float movement = length(blurredCurrent.rgb - blurredPrev.rgb);
   
   vec4 finalColor = currentColor;
   
@@ -51,7 +72,7 @@ void main() {
     for(int i = 0; i < NUM_RAYS; i++) {
       // Use random function for ray positions
       vec2 randOffset =vec2(0);//random2(uv + time * 0.1 + float(i));
-      vec2 rayPos = randOffset * 0.02;
+      vec2 rayPos = randOffset * 0.01;
       
       // Random direction that changes with time
       float randAngle = (uv.x/uv.y + (time/3.)*(1.-length(centeredUV)) * 0.5 + float(i)) +(length(centeredUV))*10.3 ;//random(uv + time * 0.5 + float(i));
@@ -62,7 +83,7 @@ void main() {
       
       // Trace ray through white area
       vec4 rayColor = vec4(0.0);
-      vec2 rayStep = rayDir * 0.01* amplitude;
+      vec2 rayStep = rayDir * 0.005* amplitude;
       vec2 tracePos = uv + rayPos;
       
       for(int step = 0; step < RAY_STEPS; step++) {
@@ -86,10 +107,10 @@ void main() {
   }
   
   // Smooth transition based on currentColor.r
-  float mixFactor = smoothstep(0.0, 0.999, currentColor.r);
+  float mixFactor = smoothstep(0.0, 0.999, blurredCurrent.r);
   vec4 brightColor = (finalColor * 2.2) - 1.2;
   vec4 moveColor = vec4(movement * 80.0);
-  gl_FragColor = mix(brightColor, moveColor, mixFactor);
+  gl_FragColor =  mix(brightColor, moveColor, mixFactor);
 } 
 
 // #ifdef GL_ES

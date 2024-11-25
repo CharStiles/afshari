@@ -34,7 +34,7 @@ let mainGraphics;
 let canvasGraphics;
 
 function preload() {
-  song = loadSound("Afshari.m4a");
+  song = loadSound("Ebadi_Afshari.m4a");
   theShader = loadShader('shader.vert', 'shader.frag');
 }
 
@@ -77,7 +77,9 @@ function setup() {
   lineProgress = 0;
   
   // Setup GUI and other elements
-  let gui = new dat.GUI();
+  let gui = new dat.GUI({
+    width: 100  // Make the panel narrower
+  });
   // ... rest of your GUI setup ...
   
   var choices = ['hexa_triangle_square', 'square', 'hexagonal', '4.8.8', 'dodeca_hex_square'];
