@@ -10,15 +10,25 @@ function Edge(a, b) {
   this.h1;
   this.h2;
   this.sidesOfParent;
-  this.show = function(currentLineIndex, progress = 1) {
+  
+  this.show = function(currentLineIndex, progress = 1, lastEndpoint = null) {
     if (gridCheck.checked()) {
       stroke(255, 25);
       line(this.a.x, this.a.y, this.b.x, this.b.y);
     }
     
     if (currentLineIndex === this.lineIndex) {
-      this.h1.show(progress);
-      this.h2.show(progress);
+      if (progress <= 1) {
+        // Draw first line
+        let currentEnd = p5.Vector.lerp(this.h1.a, this.h1.end, progress);
+        this.h1.showSegment(this.h1.a, currentEnd);
+      } else {
+        // Draw first line complete
+        this.h1.showSegment(this.h1.a, this.h1.end);
+        // Draw second line starting from its actual start point
+        let currentEnd = p5.Vector.lerp(this.h2.a, this.h2.end, progress - 1);
+        this.h2.showSegment(this.h2.a, currentEnd);
+      }
     } else if (currentLineIndex > this.lineIndex) {
       this.h1.show(1);
       this.h2.show(1);
@@ -51,7 +61,7 @@ function Edge(a, b) {
     var alpha = alpha / 2;
     var beta = PI - alpha - radians(params.angle);
     var len = sin(alpha) * ((half_len + params.delta) / sin(beta));
-	
+
     v1.setMag(len);
     v2.setMag(len);
 

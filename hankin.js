@@ -9,12 +9,13 @@ function Hankin(a, v) {
   this.v = v;
   this.end = p5.Vector.add(a, v);
 
-  this.show = function(progress = 1) {
+  this.showSegment = function(start, end) {
     stroke(255);
     strokeWeight(params.lineThickness);
-    
-    // Calculate intermediate point based on progress
-    let currentEnd = p5.Vector.lerp(this.a, this.end, progress);
-    line(this.a.x, this.a.y, currentEnd.x, currentEnd.y);
+    line(start.x, start.y, end.x, end.y);
+  }
+
+  this.show = function(progress = 1) {
+    this.showSegment(this.a, p5.Vector.lerp(this.a, this.end, progress));
   }
 }

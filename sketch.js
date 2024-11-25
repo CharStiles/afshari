@@ -26,10 +26,16 @@ let params = {
   selected: "hexa_triangle_square",
   backgroundColor: 51,
   ampSmooth: 0.9,
+  maxThicknessMultiplier: 4,
 };
+
+let theShader;
+let mainGraphics;
+let canvasGraphics;
 
 function preload() {
   song = loadSound("Afshari.m4a");
+  theShader = loadShader('shader.vert', 'shader.frag');
 }
 
 let isStarted = false;
@@ -43,9 +49,12 @@ let drawingMultiple = false;
 let drawSpeed = 0.02;
 
 function setup() {
-  var canvas = createCanvas(windowWidth, windowHeight);
+  var canvas = createCanvas(windowWidth, windowHeight, WEBGL);
   canvas.drop(gotFile);
-
+  
+  // Just one buffer for previous frame
+  canvasGraphics = createGraphics(windowWidth, windowHeight, P2D);
+  
   amp = new p5.Amplitude();
   amp.toggleNormalize(true);
   fft = new p5.FFT();
@@ -78,6 +87,7 @@ gui.add(params, 'selected', choices)
     .onChange(chooseTiling);
   
   gui.add(params, "lineThickness").min(0.1).max(8.0).step(0.01);
+  gui.add(params, "maxThicknessMultiplier").min(1).max(10).step(0.1).name("Max Thickness Multiplier");
   gui.add(params, "delta").min(0).max(50.0).step(1);
   gui.add(params, "angle").min(0).max(90.0).step(1);
   gui.add(params, "speed").min(0.01).max(2.0).step(0.01).name("Drawing Speed");
@@ -121,31 +131,33 @@ function startExperience() {
 function draw() {
   if (!isStarted) return;
   
+  // Store current frame before drawing new one
+ 
+  
+  // Draw directly to canvas
+  translate(-width/2, -height/2);  // Move to top-left for normal coordinates
   background(params.backgroundColor);
+  
   fft.analyze();
   amp.smooth(params.ampSmooth);
   let level = amp.getLevel();
   
   // Only progress if there's sound
-  if (level > 0.001) {  // Small threshold to account for background noise
+  if (level > 0.001) {
     let elapsedTime = millis() - startTime;
     
-    // Use params.speed as base speed
     if (elapsedTime > ACCELERATION_TIME && !drawingMultiple) {
       drawingMultiple = true;
       drawSpeed = params.speed;
     }
     
-    // Increase speed over time in accelerated mode
     if (drawingMultiple) {
       drawSpeed = min(drawSpeed + (params.speed + 0.002), params.speed * 4);
     }
     
-    // Update line progress with time
     lineProgress += drawSpeed;
     
-    // When line is complete, move to next line
-    if (lineProgress >= 1) {
+    if (lineProgress >= 2) {
       lineProgress = 0;
       currentLineIndex++;
       
@@ -161,38 +173,38 @@ function draw() {
     }
   }
   
-  // Modulate progress with audio level
-  let audioModulation = map(level, 0.2, 1, 0.5, 1.5);
-  audioModulation = constrain(audioModulation, 0, 1);
-  let displayProgress = lineProgress * audioModulation;
-  
   // Draw completed polygons
   for (let poly of completedPolys) {
     poly.hankin();
     poly.show(poly.edges.length, 1);
   }
   
-  // Draw current and additional polygons in accelerated mode
+  // Draw current polygons
   if (currentPoly < orderedPolys.length) {
-    let polysToDraw = drawingMultiple ? 3 : 1; // Draw 3 polygons at once in accelerated mode
+    let polysToDraw = drawingMultiple ? 3 : 1;
     
     for (let i = 0; i < polysToDraw; i++) {
       let polyIndex = currentPoly + i;
       if (polyIndex < orderedPolys.length && !completedPolys.includes(orderedPolys[polyIndex])) {
         orderedPolys[polyIndex].hankin();
-        orderedPolys[polyIndex].show(currentLineIndex, displayProgress);
+        orderedPolys[polyIndex].show(currentLineIndex, lineProgress);
       }
     }
   }
   
-  // Optional: Visual feedback for acceleration
-  if (drawingMultiple) {
-    let intensity = map(drawSpeed, 0.05, 0.2, 0, 255);
-    stroke(255, intensity);
-    strokeWeight(2);
-    noFill();
-    rect(0, 0, width, height);
-  }
+  // Capture current state before applying shader
+  let currentCanvas = get();  // Capture current canvas
+  
+  // Apply shader as final layer
+  shader(theShader);
+  theShader.setUniform('tex0', currentCanvas);
+  theShader.setUniform('prevFrame', canvasGraphics);  // Use same texture for both
+  theShader.setUniform('resolution', [width, height]);
+  theShader.setUniform('time', millis() / 1000.0);
+  theShader.setUniform('amplitude', level);  // Pass amplitude to shader
+  rect(-1, -1, 2, 2);  // Draw shader over everything
+
+  canvasGraphics=currentCanvas;
 }
 function octSquareTiling() {
   console.log("!!Creating octagon square pattern");
@@ -250,9 +262,9 @@ function gotFile(file) {
 function chooseTiling() {
   console.log("chooseTiling called with pattern:", params.selected);
   // Clear existing arrays
-  polys = [];
-  orderedPolys = [];
-  completedPolys = [];
+  // polys = [];
+  // orderedPolys = [];
+  // completedPolys = [];
   
   switch (params.selected) {
     case "4.8.8":

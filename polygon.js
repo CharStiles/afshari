@@ -8,6 +8,7 @@ function Polygon(sides) {
   this.interiorAngle = ((sides - 2) * PI) / sides;
   this.vertices = [];
   this.edges = [];
+  this.lastEndpoint = null;
 
   this.addVertex = function(x, y) {
     var a = createVector(x, y);
@@ -38,7 +39,18 @@ function Polygon(sides) {
   this.show = function(currentLineIndex, progress = 1) {
     for (var i = 0; i < this.edges.length; i++) {
       this.edges[i].lineIndex = i;
-      this.edges[i].show(currentLineIndex, progress);
+      if (i === currentLineIndex) {
+        this.edges[i].show(currentLineIndex, progress, this.lastEndpoint);
+        if (progress >= 1) {
+          // Store the endpoint for the next line
+          let edge = this.edges[i];
+          if (edge.h1.end) {
+            this.lastEndpoint = edge.h1.end.copy();
+          }
+        }
+      } else {
+        this.edges[i].show(currentLineIndex, progress);
+      }
     }
   }
 
